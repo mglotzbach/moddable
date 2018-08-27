@@ -44,6 +44,10 @@ void xs_flash(xsMachine *the)
 			flash.partition = esp_partition_find_first(0x40, 1,  NULL);
 			if (!flash.partition)
 				xsUnknownError("can't find xs partition");
+		} else if (0 == c_strcmp(partition, "image")) {
+			flash.partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS, partition);
+			if (!flash.partition)
+				xsUnknownError("can't find image partition");			
 		}
 		else
 			xsUnknownError("unknown partition");
@@ -77,10 +81,12 @@ void xs_flash_read(xsMachine *the)
 	modFlash flash = xsmcGetHostChunk(xsThis);
 	int offset = xsmcToInteger(xsArg(0));
 	int byteLength = xsmcToInteger(xsArg(1));
+	void *buffer = xsmcToArrayBuffer(xsArg(2));
 
-	xsResult = xsArrayBuffer(NULL, byteLength);
-	if (ESP_OK != esp_partition_read(flash->partition, offset, xsmcToArrayBuffer(xsResult), byteLength))
-		xsUnknownError("read failed");
+	//xsResult = xsArrayBuffer(NULL, byteLength);
+	if (ESP_OK != esp_partition_read(flash->partition, offset, buffer, byteLength)) {
+			xsUnknownError("read failed");
+	}
 }
 
 void xs_flash_write(xsMachine *the)
@@ -88,7 +94,12 @@ void xs_flash_write(xsMachine *the)
 	modFlash flash = xsmcGetHostChunk(xsThis);
 	int offset = xsmcToInteger(xsArg(0));
 	int byteLength = xsmcToInteger(xsArg(1));
-	void *buffer = xsmcToArrayBuffer(xsArg(2));
+	void *buffer;
+	if (xsmcIsInstanceOf(xsArg(2), xsArrayBufferPrototype))
+		buffer = xsmcToArrayBuffer(xsArg(2));
+	else
+		buffer = xsmcGetHostData(xsArg(2));
+		
 	if (ESP_OK != esp_partition_write(flash->partition, offset, buffer, byteLength))
 		xsUnknownError("write failed");
 }
